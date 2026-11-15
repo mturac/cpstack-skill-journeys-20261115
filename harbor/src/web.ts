@@ -25,6 +25,15 @@ function batchCsv(batch: Batch): string {
     [entry.id, String(entry.minutes), entry.label].map(value => `"${value.replace(/"/g, '""')}"`).join(',')
   ).join('\n');
 }
+// A browser submits every textarea line break as CRLF, whichever of LF, CRLF, or CR the page held.
+function browserWireText(text: string): string {
+  return text.replace(/\r\n|\r|\n/g, '\r\n');
+}
+function acceptBrowserRoundTrip(result: ImportResult, submitted: string): ImportResult {
+  return result.kind === 'conflict' && submitted === browserWireText(batchCsv(result.batch))
+    ? { kind: 'replayed', batch: result.batch }
+    : result;
+}
 function page(batch: string, csv: string, result?: VisibleResult, notice?: string): string {
   const saved = result && 'batch' in result ? result.batch : undefined;
   const failed = result && result.kind !== 'found' && result.kind !== 'imported' && result.kind !== 'replayed';
@@ -106,7 +115,7 @@ export function startServer(workLog: WorkLog, port: number): Server {
         response.writeHead(415); response.end('Use the import form.'); return;
       }
       const form = await readForm(request);
-      const result = workLog.importBatch(form);
+      const result = acceptBrowserRoundTrip(workLog.importBatch(form), form.csv);
       if (result.kind === 'imported' || result.kind === 'replayed') {
         response.writeHead(303, { Location: `/?${new URLSearchParams({ batch: result.batch.id, notice: result.kind })}` });
         response.end();

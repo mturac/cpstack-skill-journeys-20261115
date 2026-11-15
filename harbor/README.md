@@ -36,12 +36,17 @@ A storage error can leave the outcome uncertain. Inspect or retry the same input
 2. Open the printed `http://127.0.0.1:4173` address.
 3. Enter a batch id and paste a CSV into **CSV entries**.
 4. Click **Save batch**. The receipt lists the saved entries and total minutes.
-5. Bookmark the receipt URL. Reload the page to inspect the saved batch.
-6. Stop the server with Ctrl+C. Restart with the same `HARBOR_DB` and open the bookmarked URL.
+5. To retry, click **Save batch** on the receipt page without an edit. The result is `replayed`.
+6. Bookmark the receipt URL. Reload the page to inspect the saved batch.
+7. Stop the server with Ctrl+C. Restart with the same `HARBOR_DB` and open the bookmarked URL.
 
 Use `node harbor.ts serve 4180` for another port, or `serve 0` for an available port.
 The server listens only on `127.0.0.1`. Open the printed address exactly.
 The import form accepts requests from that origin.
+
+A browser sends every line break in the form as CRLF.
+The unedited receipt page still replays a label that was saved with LF or CR line breaks, and the saved label keeps them.
+The command line and `importBatch` compare labels byte for byte, so LF and CRLF labels stay different there.
 
 ## CSV rules
 
