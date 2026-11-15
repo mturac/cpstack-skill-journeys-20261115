@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { test } from 'node:test';
+
+test('CLI help, import, retry, inspect, conflict, missing, and malformed UTF-8 have operator-visible outcomes', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'harbor-cli-'));
+  const db = join(directory, 'work-log.sqlite');
+  const csv = join(directory, 'day.csv');
+  writeFileSync(csv, 'id,minutes,label\na,12,"review, edits"\n');
+  const cli = (...args: string[]) => spawnSync(process.execPath, ['harbor.ts', ...args], { cwd: process.cwd(), env: { ...process.env, HARBOR_DB: db }, encoding: 'utf8' });
+  assert.match(cli('help').stdout, /Usage:/);
+  const imported = cli('import', 'monday', csv, '--json');
+  assert.equal(imported.status, 0, imported.stderr);
+  assert.equal(JSON.parse(imported.stdout).kind, 'imported');
+  assert.match(cli('import', 'monday', csv).stdout, /^replayed monday 1 12/);
+  assert.match(cli('inspect', 'monday').stdout, /^found monday 1 12/);
+  writeFileSync(csv, 'id,minutes,label\na,13,x\n');
+  const conflict = cli('import', 'monday', csv, '--json');
+  assert.equal(conflict.status, 2);
+  assert.equal(conflict.stdout, '');
+  assert.equal(JSON.parse(conflict.stderr).batch.totalMinutes, 12);
+  const missing = cli('inspect', 'absent', '--json');
+  assert.equal(missing.status, 2);
+  assert.equal(JSON.parse(missing.stderr).kind, 'absent');
+  writeFileSync(csv, Buffer.from([0xff]));
+  const invalid = cli('import', 'bad', csv, '--json');
+  assert.equal(invalid.status, 2);
+  assert.equal(JSON.parse(invalid.stderr).kind, 'invalid');
+});

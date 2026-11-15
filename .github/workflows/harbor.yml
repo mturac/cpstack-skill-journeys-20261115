@@ -1,0 +1,26 @@
+name: Harbor replay
+on:
+  push:
+    branches: ["harbor-browser-replay"]
+  pull_request:
+    paths: ["harbor/**", ".github/workflows/harbor.yml"]
+permissions:
+  contents: read
+jobs:
+  harbor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: harbor
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 26.11.1
+          cache: npm
+          cache-dependency-path: harbor/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
